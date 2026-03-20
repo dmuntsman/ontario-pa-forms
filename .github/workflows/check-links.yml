@@ -1,0 +1,66 @@
+name: Weekly PDF Link Check
+
+on:
+  schedule:
+    # Every Monday at 9:00 AM UTC (5:00 AM EDT)
+    - cron: '0 9 * * 1'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  check-links:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Check PDF links
+        id: check
+        run: |
+          node scripts/check-links.cjs > link-report.txt 2>&1
+          echo "report<<EOF" >> $GITHUB_OUTPUT
+          cat link-report.txt >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+          # Check if any links failed
+          if grep -q "BROKEN" link-report.txt; then
+            echo "has_broken=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_broken=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Update last verified date
+        if: steps.check.outputs.has_broken == 'false'
+        run: |
+          TODAY=$(date -u +"%Y-%m-%d")
+          sed -i "s/LAST_VERIFIED = \"[^\"]*\"/LAST_VERIFIED = \"${TODAY}\"/" client/src/lib/formData.ts
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add client/src/lib/formData.ts
+          git diff --cached --quiet || (git commit -m "Update last verified date to ${TODAY}" && git push)
+
+      - name: Send email on broken links
+        if: steps.check.outputs.has_broken == 'true'
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: "⚠️ Ontario PA Forms - Broken Links Detected"
+          to: dan.vermunt@gmail.com
+          from: Ontario PA Forms Bot
+          body: |
+            The weekly link check found broken PDF links:
+
+            ${{ steps.check.outputs.report }}
+
+            Please review and update the affected links in client/src/lib/formData.ts
+
+      - name: Print report
+        run: cat link-report.txt

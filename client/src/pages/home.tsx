@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { drugs, categories, insurers, type Drug } from "@/lib/formData";
+import { drugs, categories, insurers, LAST_VERIFIED, type Drug } from "@/lib/formData";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { PerplexityAttribution } from "@/components/PerplexityAttribution";
@@ -346,6 +346,15 @@ export default function Home() {
 
         {/* Footer */}
         <footer className="mt-10 pt-5 border-t border-border/60">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-800/40">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
+                Links verified {new Date(LAST_VERIFIED + "T00:00:00").toLocaleDateString("en-CA", { month: "long", day: "numeric", year: "numeric" })}
+              </span>
+            </div>
+            <span className="text-[10px] text-muted-foreground/40">Checked weekly</span>
+          </div>
           <div className="text-[11px] text-muted-foreground/50 space-y-1 mb-4">
             <p>Ontario-specific prior authorization forms for reimbursement specialists.</p>
             <p>Forms sourced directly from insurer portals. Links may change when insurers update annually.</p>
