@@ -6,6 +6,9 @@ on:
     - cron: '0 9 * * 1'
   workflow_dispatch: # Allow manual trigger
 
+permissions:
+  contents: write
+
 jobs:
   check-links:
     runs-on: ubuntu-latest
@@ -16,19 +19,26 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Check PDF links
         id: check
         run: |
-          node scripts/check-links.cjs > link-report.txt 2>&1
+          # Run link checker — exit code 1 means broken links found, not a script error
+          node scripts/check-links.cjs > link-report.txt 2>&1 || true
+
           echo "report<<EOF" >> $GITHUB_OUTPUT
           cat link-report.txt >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-          # Check if any links failed
-          if grep -q "BROKEN" link-report.txt; then
-            echo "has_broken=true" >> $GITHUB_OUTPUT
+          # Check if any links are truly broken
+          if grep -q "BROKEN:" link-report.txt; then
+            BROKEN_COUNT=$(grep "BROKEN:" link-report.txt | grep -oP '\d+')
+            if [ "$BROKEN_COUNT" -gt "0" ]; then
+              echo "has_broken=true" >> $GITHUB_OUTPUT
+            else
+              echo "has_broken=false" >> $GITHUB_OUTPUT
+            fi
           else
             echo "has_broken=false" >> $GITHUB_OUTPUT
           fi
@@ -63,4 +73,5 @@ jobs:
             Please review and update the affected links in client/src/lib/formData.ts
 
       - name: Print report
+        if: always()
         run: cat link-report.txt
